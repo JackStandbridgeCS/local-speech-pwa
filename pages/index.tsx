@@ -1,49 +1,69 @@
+/* eslint-disable no-console */
 import { Inter } from 'next/font/google';
 
 import Nav from '@/components/nav';
 import styles from '@/styles/Home.module.css';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export default function Home() {
-  const [state, setState] = useState<string>('');
+  const [transcript, setTranscript] = useState<string>('');
+  const [transcribing, setTranscribing] = useState(false);
+  const recognition = useRef<SpeechRecognition>();
+
+  const toggleTranscribing = () => {
+    setTranscribing((transcribing) => !transcribing);
+  };
 
   useEffect(() => {
-    const recognition = new webkitSpeechRecognition();
+    if (transcribing) {
+      recognition.current = new webkitSpeechRecognition();
 
-    recognition.continuous = true;
-    recognition.lang = 'en-GB';
-    recognition.interimResults = true;
-    recognition.maxAlternatives = 1;
-    recognition.start();
+      recognition.current.continuous = true;
+      recognition.current.lang = 'en-GB';
+      recognition.current.interimResults = true;
+      recognition.current.maxAlternatives = 1;
+      recognition.current.start();
 
-    recognition.addEventListener('audiostart', (event) => {
-      // eslint-disable-next-line no-console
-      console.log(event);
-    });
+      [
+        'audiostart',
+        'audioend',
+        'end',
+        'error',
+        'nomatch',
+        'result',
+        'soundend',
+        'speechstart',
+        'speechend',
+        'start',
+      ].forEach(
+        (type) =>
+          recognition.current?.addEventListener(type, (e) => {
+            console.log(type, e);
+          }),
+      );
 
-    recognition.addEventListener('audioend', (event) => {
-      // eslint-disable-next-line no-console
-      console.log(event);
-    });
-
-    recognition.addEventListener('nomatch', (event) => {
-      // eslint-disable-next-line no-console
-      console.log(event);
-    });
-
-    recognition.addEventListener('result', (event) => {
-      const results = Array.from(event.results).map((r) => r[0]);
-      setState(results.map((r) => r.transcript).join(''));
-    });
-  }, []);
+      recognition.current?.addEventListener('result', (event) => {
+        const results = Array.from(event.results).map((r) => r[0]);
+        setTranscript(results.map((r) => r.transcript).join(''));
+      });
+    } else {
+      recognition.current?.stop();
+    }
+  }, [transcribing]);
 
   return (
     <>
       <Nav />
 
-      <main className={`${styles.main} ${inter.className}`}>{state}</main>
+      <main className={`${styles.main} ${inter.className}`}>
+        <button onClick={toggleTranscribing}>
+          {transcribing ? 'stop' : 'start'}
+        </button>
+
+        {transcript}
+      </main>
     </>
   );
 }
